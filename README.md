@@ -17,7 +17,12 @@ Photoshop / Procreate / Illustrator / Figma 里画好的图变成你的杯贴：
 
 画布尺寸实测为 **618 × 927**（RGBA PNG），两条路都按这个尺寸适配。
 
-> **想直接能用，跳到「[mitm 代理替换](#mitm-代理替换推荐路线)」。**
+![界面](docs/screenshots/1-main.webp)
+
+> **想直接能用：有图形界面。** `./macos/build.sh --run` 构建并打开
+> `CHAGEE SWAP.app`，拖张图进去、点「启动代理」就行 —— 见「[用法](#用法)」。
+>
+> 命令行党跳到「[mitm 代理替换](#mitm-代理替换推荐路线)」。
 > 下面的纯 HTTP 路线保留了完整的排错过程和实测数据，可以当参考。
 
 ## 安装
@@ -58,7 +63,24 @@ python3 cup_sticker.py --har <你的 traffic.har> --save-config
 
 ## 用法
 
-### 方式一：双击 `.command`（最省事，推荐）
+### 方式零：图形界面 app（最省事）
+
+原生 SwiftUI 写的 `CHAGEE SWAP.app`，把「选图 → 适配 → 起代理 → 停代理」收进一个窗口：
+
+```bash
+./macos/build.sh --run          # 构建并打开（首次会生成图标、ad-hoc 签名）
+```
+
+拖一张图进去，点「启动代理」，去小程序里创作杯贴，回来点「停止代理」。
+界面会实时显示日志、替换次数，以及服务端最终存下的图片地址。
+
+| 运行中 | 关于 |
+| --- | --- |
+| ![运行中](docs/screenshots/2-running.webp) | ![关于](docs/screenshots/3-about.webp) |
+
+构建细节见 [构建 macOS app](#构建-macos-app)。
+
+### 方式一：双击 `.command`（命令行路线，推荐）
 
 在 Finder 里双击 **`选图上传杯贴.command`**，会弹终端窗口，然后：
 
@@ -104,6 +126,11 @@ python3 cup_sticker.py --img-url https://images.qmai.cn/.../xxx.png
 | `none` | 原样上传，要求原图已是 618×927 |
 
 `--bg white|transparent` 控制 `contain` 补边颜色，默认白色（印在杯子上等于不印）。
+
+图形界面里是同一套逻辑（`macos/Sources/ImagePreparer.swift`，CoreGraphics 原生实现，
+不依赖 Pillow），三种模式对应「留白 / 铺满 / 拉伸」：
+
+![留白模式](docs/screenshots/4-fit-contain.webp)
 
 ### 主要参数
 
@@ -327,7 +354,8 @@ prepare_artwork.py      预适配（必须在有 Pillow 的解释器下跑）
 
 ## 自检
 
-**两套，共 30 项，开箱即跑、都不联网。**
+**四套，共 77 项，开箱即跑。** Python 两套不联网；Swift 两套里 `verify_fit` 不联网，
+`e2e` 会短暂接管系统代理（约 10 秒，跑完自动还原）。
 
 素材用仓库自带的**合成**抓包（`fixtures/`），所以 clone 下来直接就能跑，
 不需要先有真实流量，结果也可复现。想跑你自己的真实抓包见下。
@@ -342,9 +370,24 @@ $PY selftest_replace.py
 
 # ② addon 接线：12 项，跑在 mitmproxy 真实运行时里
 mitmdump -s selftest_mitm.py --listen-host 127.0.0.1 --listen-port 18899
+
+# ③ 图片适配：28 项，像素级 —— 用四象限纯色图验证方向、缩放、留白
+./macos/tools/verify_fit/run.sh
+
+# ④ app 端到端：19 项 —— 起代理 → 接管系统代理 → 看门狗就位 → 停止 → 还原
+./macos/tools/e2e/run.sh
 ```
 
-`.command` 菜单第 4 项会一次跑完两套。
+`.command` 菜单第 4 项会一次跑完 Python 那两套。
+
+### 界面截图（离屏渲染，不需要屏幕录制权限）
+
+```bash
+./macos/tools/render_shots/run.sh      # 输出到 macos/build/shots/
+```
+
+因为 `ImageRenderer` 不跑布局、`ScrollView` 里的内容会渲染成空白，这里走的是
+「离屏 NSWindow + `NSHostingView` + `cacheDisplay`」，布局流程和真实窗口一致。
 
 ### 换成你自己的真实抓包
 
@@ -424,6 +467,10 @@ CUP_TEST_HAR=/path/to/traffic.har \
 
 更坑的是：`curl` / `python` 的 `urllib` **不读系统代理设置**，所以这时候跑连通性测试
 反而会「通过」，你会误以为是网络本身的问题，越查越远。
+
+> 用图形界面的话，「停止代理」按钮就是走同一条 `--close` 总闸；
+> 直接关窗口 / 退出 app 时，`applicationWillTerminate` 里也会同步跑一次 `--close`，
+> 所以正常退出不会留下断网状态。
 
 **开代理的顺序也做了防断网。** 启动时严格按这个次序来：
 
@@ -580,6 +627,58 @@ python3 cup_sticker.py --list --json # 原始 JSON
 | 4 | 图片问题 |
 | 5 | 业务接口返回失败 |
 
+## 构建 macOS app
+
+原生 SwiftUI，**没有 Xcode 工程文件** —— 直接用 `swiftc` 编译 `macos/Sources/` 下的
+所有 `.swift`，手写 `Info.plist`，ad-hoc 签名。这样 clone 下来不需要 Xcode 工程也能构建。
+
+```bash
+./macos/build.sh          # 构建到项目根目录的 CHAGEE SWAP.app
+./macos/build.sh --run    # 构建完顺便打开
+```
+
+- **系统要求**：macOS 14+（用了 `ImageRenderer` / `@Observable` 一类的 API）
+- **工具链**：需要 Xcode 或 Command Line Tools。如果装了完整 Xcode，`build.sh` 会自动
+  把 `DEVELOPER_DIR` 切过去 —— 因为 CLT 自带的 `module.modulemap` 与 `bridging.modulemap`
+  重复定义了 `SwiftBridging`，直接用 CLT 编译会报 `redefinition of module 'SwiftBridging'`。
+- **图片适配**：用 CoreGraphics 原生实现 618×927，**不依赖 Python / Pillow**
+- **图标**：`macos/makeicon.swift` 用 CoreGraphics 现画一个（绿色圆角方块 + 白杯子），
+  不需要外挂 PNG 素材
+- 构建产物 `*.app` 与 `macos/build/` 都已被 `.gitignore` 忽略
+
+### 目录
+
+```
+macos/
+  Sources/
+    ChageeSwapApp.swift   入口：@main + AppDelegate（退出前兜底关代理）
+    Shell.swift           窗口外壳：侧边栏 + 内容区
+    AppModel.swift        状态中枢：选图 / 适配 / 起停代理 / 环境探测
+    SwapView.swift        「换图」页
+    AboutView.swift       「关于」页
+    ProxyController.swift 管 replace_proxy.py 子进程：启动 / 实时日志 / 停止
+    ImagePreparer.swift   CoreGraphics 原生 618×927 适配（留白 / 铺满 / 拉伸）
+    Environment.swift     探测 python3 / mitmdump / 项目目录
+    Theme.swift           配色与卡片样式
+  Info.plist             手写（CFBundleIdentifier=dev.speirpic.chagee-swap）
+  build.sh               一键构建
+  makeicon.swift         生成 AppIcon
+  tools/
+    verify_fit/          适配逻辑像素级自检（28 项）
+    e2e/                 app 端到端联调（19 项）
+    render_shots/        界面离屏渲染成 PNG（不需要屏幕录制权限）
+```
+
+### 几个实现上的坑（都踩过了）
+
+| 坑 | 现象 | 处理 |
+| --- | --- | --- |
+| `ImageRenderer` 不跑布局 | `ScrollView` 里的内容渲染成空白 | 改用离屏 `NSWindow` + `NSHostingView` + `cacheDisplay` |
+| `@main` 与 `main.swift` 冲突 | 自检程序编译不过 | 自检脚本编译 `Sources/` 时排除 `ChageeSwapApp.swift` |
+| 管道下 ANSI 颜色码 | 界面日志满屏 `^[[2m` | `replace_proxy.py` 在非 TTY 下不上色，界面侧再剥一道 |
+| `networksetup` 隐式开启代理 | 设完地址代理就被打开了 | 设完地址必须再显式 `-setwebproxystate`，顺序不能反 |
+| 退出时窗口先关、代理还在 | 断网 | `applicationWillTerminate` 里同步跑一次 `--close` |
+
 ## 文件
 
 ```
@@ -597,6 +696,13 @@ selftest_mitm.py      自检②：addon 接线 12 项（mitmproxy 真实运行�
 fixtures/             自检用的**合成**素材（不含任何真实凭证）
   upload_request.har    合成抓包：假 token / 假 cookie / 假图片地址
   sample_artwork.png    618×927 示例作品，自检时当替换图
+
+macos/                原生 SwiftUI 图形界面（源码；产物 *.app 不入库）
+  build.sh              一键构建 → 项目根目录的 CHAGEE SWAP.app
+  Sources/              9 个 .swift，手写工程，无 Xcode 工程文件
+  tools/verify_fit/     适配逻辑像素级自检（28 项）
+  tools/e2e/            app 端到端联调（19 项）
+  tools/render_shots/   界面离屏渲染成 PNG
 
 LICENSE               MIT
 

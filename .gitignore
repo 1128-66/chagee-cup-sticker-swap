@@ -23,6 +23,12 @@ __pycache__/
 *.pyc
 *.pyo
 
+# ── macOS app 构建产物（源码在 macos/，产物不入库）──────────
+*.app/
+macos/build/
+AppIcon.iconset/
+AppIcon.icns
+
 # ── 系统 ────────────────────────────────────────────────────
 .DS_Store
 

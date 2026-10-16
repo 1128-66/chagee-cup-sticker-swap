@@ -61,8 +61,28 @@ HAR_ADDON_CANDIDATES = tuple(
     ) if p is not None
 )
 
-B = "\033[1m"; DIM = "\033[2m"; R = "\033[0m"
-GRN = "\033[32m"; RED = "\033[31m"; YEL = "\033[33m"; CYA = "\033[36m"
+def _use_color() -> bool:
+    """只在真终端里上色。
+
+    GUI（CHAGEE SWAP.app）是用管道读我们输出的，不是 TTY ——
+    这时候必须输出纯文本，否则界面日志里会满屏 ^[[2m 这种乱码。
+    也认 NO_COLOR 这个约定（https://no-color.org）。
+    """
+    if os.environ.get("NO_COLOR"):
+        return False
+    if os.environ.get("FORCE_COLOR"):
+        return True
+    try:
+        return sys.stdout.isatty()
+    except Exception:  # noqa: BLE001
+        return False
+
+
+if _use_color():
+    B = "\033[1m"; DIM = "\033[2m"; R = "\033[0m"
+    GRN = "\033[32m"; RED = "\033[31m"; YEL = "\033[33m"; CYA = "\033[36m"
+else:
+    B = DIM = R = GRN = RED = YEL = CYA = ""
 
 # 我们接管代理时用的地址
 PROXY_HOST = "127.0.0.1"
