@@ -1,5 +1,9 @@
 # 霸王茶姬「定制杯贴」外部上传脚本
 
+[![Release](https://img.shields.io/github/v/release/1128-66/chagee-cup-sticker-swap?label=下载&color=green)](https://github.com/1128-66/chagee-cup-sticker-swap/releases/latest)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![macOS](https://img.shields.io/badge/macOS-14%2B-black)](https://github.com/1128-66/chagee-cup-sticker-swap/releases/latest)
+
 小程序自带的画布只能手绘，画不了细线、渐变、文字排版。这里给你两条路把在
 Photoshop / Procreate / Illustrator / Figma 里画好的图变成你的杯贴：
 
