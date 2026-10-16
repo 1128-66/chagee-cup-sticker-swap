@@ -1,0 +1,31 @@
+# ── 凭证与个人数据（绝对不要提交）────────────────────────────
+config.json
+last_upload.png
+last_run.log
+
+# ── 你的作品与运行产物 ──────────────────────────────────────
+# 注意：gitignore 不支持行尾注释，# 只能单独成行，
+# 否则整行会被当成一个文件名模式，规则静默失效。
+artwork.png
+artwork.jpg
+artwork.jpeg
+artwork.webp
+artwork.bmp
+artwork.gif
+replace.log
+proxy_backup.json
+watchdog.json
+har_capture/
+traffic.har
+
+# ── Python ──────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+
+# ── 系统 ────────────────────────────────────────────────────
+.DS_Store
+
+# ── 自检素材必须提交（防止上面误伤）─────────────────────────
+!fixtures/
+!fixtures/**

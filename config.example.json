@@ -1,0 +1,26 @@
+{
+  "_说明": "复制本文件为 config.json 后填写。或者直接跑 cup_sticker.py --har <traffic.har> --save-config 自动生成。",
+  "_警告": "user_token_* 等同于登录态，不要提交到 git、不要外发。",
+
+  "app_id": "cTpGhmIODc",
+  "seller_id": "49006",
+  "shop_id": "216188",
+  "from_biz": "catering",
+
+  "user_token_qm": "在 HAR 里搜 qm-user-token 请求头，86 字符",
+  "user_token_cus": "在 HAR 里搜 cus-user-token 请求头，32 位十六进制",
+
+  "cookies": {
+    "webapi.qmai.cn": {},
+    "cuswebapp.qmai.cn": {
+      "ssxmod_itna3": "阿里云 WAF 设备指纹，在 HAR 的 Cookie 请求头里",
+      "acw_tc": "阿里云 WAF 会话 cookie，在 HAR 的 Set-Cookie 响应头里"
+    },
+    "cuswebapi.qmai.cn": {}
+  },
+
+  "canvas": {
+    "width": 618,
+    "height": 927
+  }
+}
