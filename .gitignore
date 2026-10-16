@@ -24,8 +24,10 @@ __pycache__/
 *.pyo
 
 # ── macOS app 构建产物（源码在 macos/，产物不入库）──────────
+# 产物走 GitHub Release 分发，不进版本库。
 *.app/
 macos/build/
+dist/
 AppIcon.iconset/
 AppIcon.icns
 

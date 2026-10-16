@@ -25,6 +25,32 @@ Photoshop / Procreate / Illustrator / Figma 里画好的图变成你的杯贴：
 > 命令行党跳到「[mitm 代理替换](#mitm-代理替换推荐路线)」。
 > 下面的纯 HTTP 路线保留了完整的排错过程和实测数据，可以当参考。
 
+## 下载预编译版
+
+不想自己编译？到 **[Releases](https://github.com/1128-66/chagee-cup-sticker-swap/releases)**
+下载 `CHAGEE-SWAP-1.0.0-macos.zip` —— 通用二进制，Intel 与 Apple Silicon 都能跑。
+
+> **首次打开会被 Gatekeeper 拦下**：这个 app 是 ad-hoc 签名、**没有做 Apple 公证**
+> （公证需要每年 99 美元的开发者账号）。两种放行方式，任选一种：
+>
+> ```bash
+> # ① 去掉「下载隔离」标记（推荐）
+> xattr -dr com.apple.quarantine "/Applications/CHAGEE SWAP.app"
+> ```
+>
+> ② 或者双击 → 看到拦截提示 → 打开「系统设置 → 隐私与安全性」→ 拉到底点「仍要打开」。
+> 放行一次之后就不会再问了。
+
+app 本体只有 2 MB，但它**需要配合本仓库的 Python 脚本工作**。所以：
+
+```bash
+git clone https://github.com/1128-66/chagee-cup-sticker-swap.git
+cd chagee-cup-sticker-swap
+# 把 CHAGEE SWAP.app 放进这个目录（放这儿它能自己找到）
+```
+
+放在别处也行 —— 首次打开后在「关于」页点「更换」，指到仓库目录即可。
+
 ## 安装
 
 ```bash
@@ -65,7 +91,9 @@ python3 cup_sticker.py --har <你的 traffic.har> --save-config
 
 ### 方式零：图形界面 app（最省事）
 
-原生 SwiftUI 写的 `CHAGEE SWAP.app`，把「选图 → 适配 → 起代理 → 停代理」收进一个窗口：
+原生 SwiftUI 写的 `CHAGEE SWAP.app`，把「选图 → 适配 → 起代理 → 停代理」收进一个窗口。
+[Releases](https://github.com/1128-66/chagee-cup-sticker-swap/releases) 有编译好的，
+也可以自己构建：
 
 ```bash
 ./macos/build.sh --run          # 构建并打开（首次会生成图标、ad-hoc 签名）
@@ -633,9 +661,14 @@ python3 cup_sticker.py --list --json # 原始 JSON
 所有 `.swift`，手写 `Info.plist`，ad-hoc 签名。这样 clone 下来不需要 Xcode 工程也能构建。
 
 ```bash
-./macos/build.sh          # 构建到项目根目录的 CHAGEE SWAP.app
-./macos/build.sh --run    # 构建完顺便打开
+./macos/build.sh              # 通用二进制（arm64 + x86_64）→ 项目根目录
+./macos/build.sh --native     # 只编当前架构，快一点（开发时用）
+./macos/build.sh --zip        # 顺便打成 dist/CHAGEE-SWAP-<版本>-macos.zip
+./macos/build.sh --run        # 构建完打开
 ```
+
+参数可组合，比如 `./macos/build.sh --zip --run`。版本号从 `macos/Info.plist`
+的 `CFBundleShortVersionString` 读。
 
 - **系统要求**：macOS 14+（用了 `ImageRenderer` / `@Observable` 一类的 API）
 - **工具链**：需要 Xcode 或 Command Line Tools。如果装了完整 Xcode，`build.sh` 会自动
@@ -644,7 +677,10 @@ python3 cup_sticker.py --list --json # 原始 JSON
 - **图片适配**：用 CoreGraphics 原生实现 618×927，**不依赖 Python / Pillow**
 - **图标**：`macos/makeicon.swift` 用 CoreGraphics 现画一个（绿色圆角方块 + 白杯子），
   不需要外挂 PNG 素材
-- 构建产物 `*.app` 与 `macos/build/` 都已被 `.gitignore` 忽略
+- **发布包必须用 `ditto` 打**：普通 `zip` 会丢掉 bundle 里的符号链接、权限位和扩展属性，
+  解压出来的 `.app` 打不开
+- 产物 `*.app`、`macos/build/`、`dist/` 都被 `.gitignore` 忽略（二进制走 Releases 分发，
+  不进版本库）
 
 ### 目录
 
@@ -698,11 +734,14 @@ fixtures/             自检用的**合成**素材（不含任何真实凭证）
   sample_artwork.png    618×927 示例作品，自检时当替换图
 
 macos/                原生 SwiftUI 图形界面（源码；产物 *.app 不入库）
-  build.sh              一键构建 → 项目根目录的 CHAGEE SWAP.app
+  build.sh              一键构建 → 项目根目录的 CHAGEE SWAP.app（默认通用二进制）
+  Info.plist            手写；版本号在这里改（CFBundleShortVersionString）
   Sources/              9 个 .swift，手写工程，无 Xcode 工程文件
   tools/verify_fit/     适配逻辑像素级自检（28 项）
   tools/e2e/            app 端到端联调（19 项）
   tools/render_shots/   界面离屏渲染成 PNG
+
+docs/screenshots/     README 用的界面截图（WebP，离屏渲染出来的）
 
 LICENSE               MIT
 
@@ -719,4 +758,7 @@ last_run.log          .command 最近一次的完整输出，排错看这个
 replace.log           替换日志（含服务端返回的图片地址）
 proxy_backup.json     系统代理原状态备份（**退出后保留**，便于事后核对）
 watchdog.json         看门狗运行状态（跑代理时才有，退出自动清理）
+CHAGEE SWAP.app       构建出来的 app（走 Releases 分发，不入库）
+macos/build/          构建中间产物
+dist/                 发布包 CHAGEE-SWAP-<版本>-macos.zip
 ```
